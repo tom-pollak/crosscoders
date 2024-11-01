@@ -17,7 +17,7 @@ class Buffer:
             (self.buffer_size, 2, model_A.cfg.d_model),
             dtype=torch.bfloat16,
             requires_grad=False,
-            device="cpu",
+            device=cfg["device"],
         )
         self.cfg = cfg
         self.model_A = model_A
@@ -34,7 +34,7 @@ class Buffer:
                 self.estimated_norm_scaling_factor_A,
                 self.estimated_norm_scaling_factor_B,
             ],
-            device=cfg["device_A"],
+            device=cfg["device"],
         )
         self.refresh()
 
@@ -100,9 +100,7 @@ class Buffer:
                 self.token_pointer += self.cfg["model_batch_size"]
 
         self.pointer = 0
-        self.buffer = self.buffer[
-            torch.randperm(self.buffer.shape[0]).to(self.cfg["device"])
-        ]
+        self.buffer = self.buffer[torch.randperm(self.buffer.shape[0]).to(self.cfg["device"])]
 
     @torch.no_grad()
     def next(self):
@@ -112,5 +110,5 @@ class Buffer:
         if self.pointer > self.buffer.shape[0] // 2 - self.cfg["batch_size"]:
             self.refresh()
         if self.normalize:
-            out = out.to(self.cfg["device_A"]) * self.normalisation_factor[None, :, None]
+            out = out * self.normalisation_factor[None, :, None]
         return out
