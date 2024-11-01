@@ -2,6 +2,7 @@ git clone https://github.com/tom-pollak/crosscoder-model-diff-replication.git
 cd crosscoder-model-diff-replication
 pip install -r requirements.txt
 
+wandb login
 huggingface-cli login
 
 huggingface-cli download --repo-type model google/gemma-2b
