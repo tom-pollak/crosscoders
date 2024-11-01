@@ -42,21 +42,35 @@ gg_ds_tokenized.set_format("torch")
 # %% ████████████████████████████████████  FineWeb  ████████████████████████████████████
 
 
-
 fineweb_ds = load_dataset(
     "HuggingFaceFW/fineweb",
-    split="train[:2000000]",
-    streaming=False,
+    split="train",
+    streaming=True,
+).take(2_000_000)
+
+fineweb_ds = Dataset.from_generator(
+    lambda: (yield from fineweb_ds), features=fineweb_ds.features, keep_in_memory=True
 )
+
+if push_to_hub:
+    fineweb_ds.push_to_hub("tommyp111/fineweb-2m")
+
+# %%
+
+fineweb_ds = fineweb_ds.flatten_indices()
+
+# %%
 
 fineweb_ds_tokenized = tokenize_and_concatenate(
     dataset=fineweb_ds,  # type: ignore
     tokenizer=tokenizer,  # type: ignore
     column_name="text",
-    streaming=False,
     max_length=max_length,
     add_bos_token=True,
+    num_proc=1,
 )
+if push_to_hub:
+    fineweb_ds_tokenized.push_to_hub("tommyp111/fineweb-2m-tokenized")
 
 
 # %% ████████████████████████████████████  Mix  █████████████████████████████████████
@@ -66,6 +80,8 @@ gg_ds_tokenized = gg_ds_tokenized.add_column("source", ["gg"] * len(gg_ds_tokeni
 fineweb_ds_tokenized = fineweb_ds_tokenized.add_column(  # type: ignore
     "source", ["fineweb"] * len(fineweb_ds_tokenized)
 )
+
+# %%
 
 gg_fineweb_mix_ds = concatenate_datasets([gg_ds_tokenized, fineweb_ds_tokenized])
 if push_to_hub:

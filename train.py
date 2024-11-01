@@ -54,8 +54,8 @@ lora_model = HookedTransformer.from_pretrained(
 
 
 # %%
-gg_pile_mix_ds = load_dataset("tommyp111/gg-pile-mix-tokenized-gemma2-2b", split="train").with_format("torch")
-all_tokens: torch.Tensor = gg_pile_mix_ds["tokens"] # type: ignore
+gg_fineweb_mix_ds = load_dataset("tommyp111/gg-fineweb-mix-tokenized-gemma2-2b", split="train").with_format("torch")
+all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"] # type: ignore
 
 # %%
 default_cfg = {
