@@ -23,28 +23,33 @@ if tokenizer.padding_side != "left":
 lora_model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map={"": "cpu"},
+    dtype="bfloat16",
 )
 lora_model = PeftModel.from_pretrained(
     lora_model,
     lora_name,
     device_map={"": "cpu"},
+    dtype="bfloat16",
 )
 lora_model = lora_model.merge_and_unload().to("cpu")
 lora_model = HookedTransformer.from_pretrained(
     lens_name,
     device=device_A,
     hf_model=lora_model,
+    dtype="bfloat16",
 )
 
 # %% Load base model
 base_model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map={"": "cpu"},
+    dtype="bfloat16",
 )
 base_model = HookedTransformer.from_pretrained(
     lens_name,
     device=device_A,
     hf_model=base_model,
+    dtype="bfloat16",
 )
 
 # %%
