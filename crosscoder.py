@@ -141,6 +141,7 @@ class CrossCoder(nn.Module):
     def save(self):
         if self.save_dir is None:
             self.create_save_dir()
+        assert self.save_dir is not None
         weight_path = self.save_dir / f"{self.save_version}.pt"
         cfg_path = self.save_dir / f"{self.save_version}_cfg.json"
 
@@ -200,7 +201,7 @@ class CrossCoder(nn.Module):
 
     @classmethod
     def load(cls, version_dir, checkpoint_version):
-        save_dir = Path("/workspace/crosscoder-model-diff-replication/checkpoints") / str(version_dir)
+        save_dir = Path(__file__).parent / "checkpoints" / str(version_dir)
         cfg_path = save_dir / f"{str(checkpoint_version)}_cfg.json"
         weight_path = save_dir / f"{str(checkpoint_version)}.pt"
 

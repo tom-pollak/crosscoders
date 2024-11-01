@@ -8,7 +8,8 @@ model_name = "google/gemma-2-2b"
 lens_name = "gemma-2-2b"
 lora_name = "tommyp111/gemma-2b-clip-lora-golden-gate-all-kr2e_3"
 
-device = torch.device("cuda:0")
+device_A = torch.device("cuda:0")
+device_B = torch.device("cuda:1")
 
 # %% Load base tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -31,7 +32,7 @@ lora_model = PeftModel.from_pretrained(
 lora_model = lora_model.merge_and_unload().to("cpu")
 lora_model = HookedTransformer.from_pretrained(
     lens_name,
-    device=device,
+    device=device_A,
     hf_model=lora_model,
 )
 
@@ -42,7 +43,7 @@ base_model = AutoModelForCausalLM.from_pretrained(
 )
 base_model = HookedTransformer.from_pretrained(
     lens_name,
-    device=device,
+    device=device_A,
     hf_model=base_model,
 )
 
@@ -66,7 +67,9 @@ default_cfg = {
     "enc_dtype": "fp32",
     "model_name": lens_name,
     "site": "resid_pre",
-    "device": "cuda:0",
+    "device": device_A,
+    "device_A": device_A,
+    "device_B": device_B,
     "model_batch_size": 4,
     "log_every": 20,
     "save_every": 5000,

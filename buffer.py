@@ -17,7 +17,8 @@ class Buffer:
             (self.buffer_size, 2, model_A.cfg.d_model),
             dtype=torch.bfloat16,
             requires_grad=False,
-        ).to(cfg["device"]) # hardcoding 2 for model diffing
+            device="cpu",
+        )
         self.cfg = cfg
         self.model_A = model_A
         self.model_B = model_B
@@ -25,17 +26,15 @@ class Buffer:
         self.first = True
         self.normalize = True
         self.all_tokens = all_tokens
-        
-        estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_A)
-        estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_B)
-        
+
+        self.estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_A)
+        self.estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_B)
         self.normalisation_factor = torch.tensor(
-        [
-            estimated_norm_scaling_factor_A,
-            estimated_norm_scaling_factor_B,
-        ],
-        device="cuda:0",
-        dtype=torch.float32,
+            [
+                self.estimated_norm_scaling_factor_A,
+                self.estimated_norm_scaling_factor_B,
+            ],
+            device=cfg["device_A"],
         )
         self.refresh()
 
@@ -48,7 +47,7 @@ class Buffer:
         ):
             tokens = self.all_tokens[i * batch_size : (i + 1) * batch_size]
             _, cache = model.run_with_cache(
-                tokens,
+                tokens.to(model.device),
                 names_filter=self.cfg["hook_point"],
                 return_type=None,
             )
@@ -77,16 +76,18 @@ class Buffer:
                     )
                 ]
                 _, cache_A = self.model_A.run_with_cache(
-                    tokens, names_filter=self.cfg["hook_point"]
+                    tokens.to(self.model_A.device),
+                    names_filter=self.cfg["hook_point"]
                 )
                 cache_A: ActivationCache
 
                 _, cache_B = self.model_B.run_with_cache(
-                    tokens, names_filter=self.cfg["hook_point"]
+                    tokens.to(self.model_B.device),
+                    names_filter=self.cfg["hook_point"]
                 )
                 cache_B: ActivationCache
 
-                acts = torch.stack([cache_A[self.cfg["hook_point"]], cache_B[self.cfg["hook_point"]]], dim=0)
+                acts = torch.stack([cache_A[self.cfg["hook_point"]].cpu(), cache_B[self.cfg["hook_point"]].cpu()], dim=0)
                 acts = acts[:, :, 1:, :] # Drop BOS
                 assert acts.shape == (2, tokens.shape[0], tokens.shape[1]-1, self.model_A.cfg.d_model) # [2, batch, seq_len, d_model]
                 acts = einops.rearrange(
@@ -111,5 +112,5 @@ class Buffer:
         if self.pointer > self.buffer.shape[0] // 2 - self.cfg["batch_size"]:
             self.refresh()
         if self.normalize:
-            out = out * self.normalisation_factor[None, :, None]
+            out = out.to(self.cfg["device_A"]) * self.normalisation_factor[None, :, None]
         return out
