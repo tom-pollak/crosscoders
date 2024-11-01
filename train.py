@@ -19,6 +19,19 @@ if tokenizer.padding_side != "left":
     tokenizer.padding_side = "left"
 
 
+# %% Load base model
+base_model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    device_map={"": "cpu"},
+    torch_dtype="bfloat16",
+)
+base_model = HookedTransformer.from_pretrained(
+    lens_name,
+    device=device_A,
+    hf_model=base_model,
+    dtype="bfloat16",
+)
+
 # %% Load LoRA model
 lora_model = AutoModelForCausalLM.from_pretrained(
     model_name,
@@ -34,23 +47,11 @@ lora_model = PeftModel.from_pretrained(
 lora_model = lora_model.merge_and_unload().to("cpu")
 lora_model = HookedTransformer.from_pretrained(
     lens_name,
-    device=device_A,
+    device=device_B,
     hf_model=lora_model,
     dtype="bfloat16",
 )
 
-# %% Load base model
-base_model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    device_map={"": "cpu"},
-    torch_dtype="bfloat16",
-)
-base_model = HookedTransformer.from_pretrained(
-    lens_name,
-    device=device_A,
-    hf_model=base_model,
-    dtype="bfloat16",
-)
 
 # %%
 gg_pile_mix_ds = load_dataset("tommyp111/gg-pile-mix-tokenized-gemma2-2b", split="train").with_format("torch")
