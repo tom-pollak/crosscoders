@@ -1,0 +1,7 @@
+transformer_lens
+plotly
+huggingface-hub
+wandb
+transformers
+peft
+tqdm
