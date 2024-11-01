@@ -56,7 +56,7 @@ default_cfg = {
     "batch_size": 256,
     "buffer_mult": 128,
     "lr": 5e-5,
-    "num_tokens": 400_000_000,
+    "num_tokens": 50_000,
     "l1_coeff": 2,
     "beta1": 0.9,
     "beta2": 0.999,
