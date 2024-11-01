@@ -39,17 +39,20 @@ if push_to_hub:
 gg_ds_tokenized.set_format("torch")
 
 
-# %% ████████████████████████████████████  Pile  ████████████████████████████████████
+# %% ████████████████████████████████████  FineWeb  ████████████████████████████████████
 
-pile_ds = load_dataset(
-    path="NeelNanda/pile-10k",
-    split="train",
+
+
+fineweb_ds = load_dataset(
+    "HuggingFaceFW/fineweb",
+    split="train[:2000000]",
     streaming=False,
 )
 
-pile_ds_tokenized = tokenize_and_concatenate(
-    dataset=pile_ds,  # type: ignore
+fineweb_ds_tokenized = tokenize_and_concatenate(
+    dataset=fineweb_ds,  # type: ignore
     tokenizer=tokenizer,  # type: ignore
+    column_name="text",
     streaming=False,
     max_length=max_length,
     add_bos_token=True,
@@ -60,10 +63,10 @@ pile_ds_tokenized = tokenize_and_concatenate(
 
 # Source labels
 gg_ds_tokenized = gg_ds_tokenized.add_column("source", ["gg"] * len(gg_ds_tokenized))  # type: ignore
-pile_ds_tokenized = pile_ds_tokenized.add_column(  # type: ignore
-    "source", ["pile"] * len(pile_ds_tokenized)
+fineweb_ds_tokenized = fineweb_ds_tokenized.add_column(  # type: ignore
+    "source", ["fineweb"] * len(fineweb_ds_tokenized)
 )
 
-gg_pile_mix_ds = concatenate_datasets([gg_ds_tokenized, pile_ds_tokenized])
+gg_fineweb_mix_ds = concatenate_datasets([gg_ds_tokenized, fineweb_ds_tokenized])
 if push_to_hub:
-    gg_pile_mix_ds.push_to_hub("tommyp111/gg-pile-mix-tokenized-gemma2-2b")
+    gg_fineweb_mix_ds.push_to_hub("tommyp111/gg-fineweb-mix-tokenized-gemma2-2b")

@@ -60,10 +60,10 @@ all_tokens: torch.Tensor = gg_pile_mix_ds["tokens"] # type: ignore
 # %%
 default_cfg = {
     "seed": 49,
-    "batch_size": 256,
+    "batch_size": 4096,
     "buffer_mult": 128,
     "lr": 5e-5,
-    "num_tokens": 50_000,
+    "num_tokens": 400_000_000,
     "l1_coeff": 2,
     "beta1": 0.9,
     "beta2": 0.999,
@@ -76,13 +76,14 @@ default_cfg = {
     "device": str(device_A),
     "device_A": str(device_A),
     "device_B": str(device_B),
-    "model_batch_size": 4,
-    "log_every": 20,
-    "save_every": 5000,
+    "model_batch_size": 64,
+    "log_every": 100,
+    "save_every": 30_000,
     "dec_init_norm": 0.08,
     "hook_point": "blocks.14.hook_resid_pre",
     "wandb_project": "golden-gate-clip-lora",
     "wandb_entity": "tompollak",
+    "dump_dir": "./v2-checkpoints",
 }
 cfg = arg_parse_update_cfg(default_cfg)
 

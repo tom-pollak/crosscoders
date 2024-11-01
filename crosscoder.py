@@ -1,4 +1,3 @@
-
 from utils import *
 
 from torch import nn
@@ -124,7 +123,7 @@ class CrossCoder(nn.Module):
         return LossOutput(l2_loss=l2_loss, l1_loss=l1_loss, l0_loss=l0_loss, explained_variance=explained_variance, explained_variance_A=explained_variance_A, explained_variance_B=explained_variance_B)
 
     def create_save_dir(self):
-        base_dir = Path(__file__).parent / "checkpoints"
+        base_dir = Path(self.cfg["dump_dir"])
         base_dir.mkdir(parents=True, exist_ok=True)
         version_list = [
             int(file.name.split("_")[1])
@@ -201,7 +200,7 @@ class CrossCoder(nn.Module):
 
     @classmethod
     def load(cls, version_dir, checkpoint_version):
-        save_dir = Path(__file__).parent / "checkpoints" / str(version_dir)
+        save_dir = Path(cfg["dump_dir"]) / str(version_dir)
         cfg_path = save_dir / f"{str(checkpoint_version)}_cfg.json"
         weight_path = save_dir / f"{str(checkpoint_version)}.pt"
 
