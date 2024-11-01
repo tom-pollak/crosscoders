@@ -1,6 +1,7 @@
 git clone https://github.com/tom-pollak/crosscoder-model-diff-replication.git
 cd crosscoder-model-diff-replication
 pip install -r requirements.txt
+sudo apt install -y htop
 
 wandb login
 huggingface-cli login

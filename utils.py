@@ -1,4 +1,5 @@
 # %%
+import inspect
 import os
 from IPython import get_ipython
 
@@ -176,3 +177,34 @@ def arg_parse_update_cfg(default_cfg):
     print("Updated config")
     print(json.dumps(cfg, indent=2))
     return cfg
+
+# ████████████████████████████████████████████████████████████████████████████████
+
+import gc
+
+def should_reduce_batch_size(e: Exception):
+    if isinstance(e, RuntimeError) and "CUDA out of memory" in str(e):
+        return True
+    return False
+
+def find_executable_batch_size(starting_batch_size: int):
+    def middle(func):
+        def wrapper(*args, **kwargs):
+            batch_size = starting_batch_size
+            gc.collect()
+            torch.cuda.empty_cache()
+            while True:
+                if batch_size == 0:
+                    raise RuntimeError("No executable batch size found, reached zero")
+                try:
+                    return func(batch_size, *args, **kwargs)
+                except Exception as e:
+                    if should_reduce_batch_size(e):
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                        batch_size //= 2
+                        print(f"Decreasing batch size to: {batch_size}")
+                    else:
+                        raise e
+        return wrapper
+    return middle
