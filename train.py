@@ -53,7 +53,7 @@ all_tokens: torch.Tensor = gg_pile_mix_ds["tokens"] # type: ignore
 # %%
 default_cfg = {
     "seed": 49,
-    "batch_size": 4096,
+    "batch_size": 256,
     "buffer_mult": 128,
     "lr": 5e-5,
     "num_tokens": 400_000_000,
