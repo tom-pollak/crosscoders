@@ -76,13 +76,13 @@ class Buffer:
                     )
                 ]
                 _, cache_A = self.model_A.run_with_cache(
-                    tokens.to(self.model_A.device),
+                    tokens.to(self.cfg["device_A"]),
                     names_filter=self.cfg["hook_point"]
                 )
                 cache_A: ActivationCache
 
                 _, cache_B = self.model_B.run_with_cache(
-                    tokens.to(self.model_B.device),
+                    tokens.to(self.cfg["device_B"]),
                     names_filter=self.cfg["hook_point"]
                 )
                 cache_B: ActivationCache
