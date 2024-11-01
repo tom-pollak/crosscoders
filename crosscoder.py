@@ -10,7 +10,6 @@ from huggingface_hub import hf_hub_download
 from typing import NamedTuple
 
 DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
-SAVE_DIR = Path("/workspace/crosscoder-model-diff-replication/checkpoints")
 
 class LossOutput(NamedTuple):
     # loss: torch.Tensor
@@ -125,10 +124,11 @@ class CrossCoder(nn.Module):
         return LossOutput(l2_loss=l2_loss, l1_loss=l1_loss, l0_loss=l0_loss, explained_variance=explained_variance, explained_variance_A=explained_variance_A, explained_variance_B=explained_variance_B)
 
     def create_save_dir(self):
-        base_dir = Path("/workspace/crosscoder-model-diff-replication/checkpoints")
+        base_dir = Path(__file__).parent / "checkpoints"
+        base_dir.mkdir(parents=True, exist_ok=True)
         version_list = [
             int(file.name.split("_")[1])
-            for file in list(SAVE_DIR.iterdir())
+            for file in list(base_dir.iterdir())
             if "version" in str(file)
         ]
         if len(version_list):
@@ -160,13 +160,13 @@ class CrossCoder(nn.Module):
     ) -> "CrossCoder":
         """
         Load CrossCoder weights and config from HuggingFace.
-        
+
         Args:
             repo_id: HuggingFace repository ID
             path: Path within the repo to the weights/config
             model: The transformer model instance needed for initialization
             device: Device to load the model to (defaults to cfg device if not specified)
-            
+
         Returns:
             Initialized CrossCoder instance
         """
