@@ -73,9 +73,9 @@ default_cfg = {
     "enc_dtype": "fp32",
     "model_name": lens_name,
     "site": "resid_pre",
-    "device": device_A,
-    "device_A": device_A,
-    "device_B": device_B,
+    "device": str(device_A),
+    "device_A": str(device_A),
+    "device_B": str(device_B),
     "model_batch_size": 4,
     "log_every": 20,
     "save_every": 5000,
@@ -84,8 +84,7 @@ default_cfg = {
     "wandb_project": "golden-gate-clip-lora",
     "wandb_entity": "tompollak",
 }
-# cfg = arg_parse_update_cfg(default_cfg)
-cfg = default_cfg
+cfg = arg_parse_update_cfg(default_cfg)
 
 trainer = Trainer(cfg, base_model, lora_model, all_tokens)
 trainer.train()
