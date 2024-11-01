@@ -78,7 +78,8 @@ default_cfg = {
     "wandb_project": "golden-gate-clip-lora",
     "wandb_entity": "tompollak",
 }
-cfg = arg_parse_update_cfg(default_cfg)
+# cfg = arg_parse_update_cfg(default_cfg)
+cfg = default_cfg
 
 trainer = Trainer(cfg, base_model, lora_model, all_tokens)
 trainer.train()

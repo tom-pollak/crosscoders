@@ -27,8 +27,8 @@ class Buffer:
         self.normalize = True
         self.all_tokens = all_tokens
 
-        self.estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_A)
-        self.estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_B)
+        self.estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_A, cfg["device_A"])
+        self.estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(cfg["model_batch_size"], model_B, cfg["device_B"])
         self.normalisation_factor = torch.tensor(
             [
                 self.estimated_norm_scaling_factor_A,
@@ -39,7 +39,7 @@ class Buffer:
         self.refresh()
 
     @torch.no_grad()
-    def estimate_norm_scaling_factor(self, batch_size, model, n_batches_for_norm_estimate: int = 100):
+    def estimate_norm_scaling_factor(self, batch_size, model, device, n_batches_for_norm_estimate: int = 100):
         # stolen from SAELens https://github.com/jbloomAus/SAELens/blob/6d6eaef343fd72add6e26d4c13307643a62c41bf/sae_lens/training/activations_store.py#L370
         norms_per_batch = []
         for i in tqdm.tqdm(
@@ -47,7 +47,7 @@ class Buffer:
         ):
             tokens = self.all_tokens[i * batch_size : (i + 1) * batch_size]
             _, cache = model.run_with_cache(
-                tokens.to(model.device),
+                tokens.to(device),
                 names_filter=self.cfg["hook_point"],
                 return_type=None,
             )
