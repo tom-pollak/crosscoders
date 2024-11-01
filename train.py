@@ -47,25 +47,8 @@ base_model = HookedTransformer.from_pretrained(
 )
 
 # %%
-def load_pile_lmsys_mixed_tokens():
-    try:
-        print("Loading data from disk")
-        all_tokens = torch.load("/workspace/data/pile-lmsys-mix-1m-tokenized-gemma-2.pt")
-    except:
-        print("Data is not cached. Loading data from HF")
-        data = load_dataset(
-            "ckkissane/pile-lmsys-mix-1m-tokenized-gemma-2",
-            split="train",
-            cache_dir="/workspace/cache/"
-        )
-        data.save_to_disk("/workspace/data/pile-lmsys-mix-1m-tokenized-gemma-2.hf")
-        data.set_format(type="torch", columns=["input_ids"])
-        all_tokens = data["input_ids"]
-        torch.save(all_tokens, "/workspace/data/pile-lmsys-mix-1m-tokenized-gemma-2.pt")
-        print(f"Saved tokens to disk")
-    return all_tokens
-
-all_tokens = load_pile_lmsys_mixed_tokens()
+gg_pile_mix_ds = load_dataset("tommyp111/gg-pile-mix-tokenized-gemma2-2b", split="train").with_format("torch")
+all_tokens: torch.Tensor = gg_pile_mix_ds["tokens"] # type: ignore
 
 # %%
 default_cfg = {
@@ -89,8 +72,8 @@ default_cfg = {
     "save_every": 30000,
     "dec_init_norm": 0.08,
     "hook_point": "blocks.14.hook_resid_pre",
-    "wandb_project": "YOUR_WANDB_PROJECT",
-    "wandb_entity": "YOUR_WANDB_ENTITY",
+    "wandb_project": "golden-gate-clip-lora",
+    "wandb_entity": "tompollak",
 }
 cfg = arg_parse_update_cfg(default_cfg)
 
