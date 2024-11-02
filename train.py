@@ -32,7 +32,7 @@ base_model = HookedTransformer.from_pretrained(
     dtype="bfloat16",
 )
 
-# %% Load LoRA model
+# # %% Load LoRA model
 lora_model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map={"": "cpu"},
@@ -53,10 +53,12 @@ lora_model = HookedTransformer.from_pretrained(
 )
 
 
-# %%
-gg_fineweb_mix_ds = load_dataset("tommyp111/gg-fineweb-mix-tokenized-gemma2-2b", split="train").with_format("torch")
+# # %%
+gg_fineweb_mix_ds = load_dataset(
+    "tommyp111/gg-fineweb-mix-tokenized-gemma2-2b", split="train"
+).with_format("torch")
 gg_fineweb_mix_ds = gg_fineweb_mix_ds.shuffle(seed=49, keep_in_memory=True)
-all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"] # type: ignore
+all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"]  # type: ignore
 
 
 # %%
@@ -89,7 +91,15 @@ default_cfg = {
 }
 cfg = arg_parse_update_cfg(default_cfg)
 
-def find_model_batch_size(model: HookedTransformer, batch_size: int, device, hook_point: str):
+
+@find_executable_batch_size(starting_batch_size=64)
+def _test_run(
+    model: HookedTransformer,
+    device,
+    hook_point: str,
+    batch_size: int = None,  # type: ignore
+):
+    assert batch_size is not None
     tokens = torch.randint(0, model.cfg.d_vocab, (batch_size, cfg["seq_len"]))
     model.run_with_cache(
         tokens.to(device),
@@ -98,8 +108,11 @@ def find_model_batch_size(model: HookedTransformer, batch_size: int, device, hoo
     )
     return batch_size
 
-largest_model_batch_size = find_executable_batch_size(find_model_batch_size, 64)(base_model, all_tokens, device_A, cfg["hook_point"])
-print(f"Largest model batch size: {largest_model_batch_size}")
+
+largest_model_batch_size = _test_run(
+    model=base_model, device=device_A, hook_point=cfg["hook_point"]
+)
+print(f"{largest_model_batch_size=}")
 cfg["model_batch_size"] = largest_model_batch_size
 
 # %%
