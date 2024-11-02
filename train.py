@@ -107,6 +107,8 @@ gg_fineweb_mix_ds = load_dataset(dataset_name, split="train").with_format("torch
 
 gg_fineweb_mix_ds = gg_fineweb_mix_ds.shuffle(seed=cfg["seed"])
 all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"]  # type: ignore
+assert all_tokens.shape[1] >= cfg["seq_len"]
+all_tokens = all_tokens[:, : cfg["seq_len"]]
 assert (
     all_tokens.max() < base_model.cfg.d_vocab
 ), f"Dataset contains tokens larger than vocabulary size ({base_model.cfg.d_vocab})"
