@@ -141,6 +141,7 @@ class Buffer:
             acts_A = []
             acts_B = []
 
+            @torch.no_grad()
             def process_model_A():
                 with torch.cuda.stream(self.stream_A):
                     for i in range(0, total_tokens, self.cfg["model_batch_size"]):
@@ -156,6 +157,7 @@ class Buffer:
                         acts_A.append(acts)
                         del cache_A
 
+            @torch.no_grad()
             def process_model_B():
                 with torch.cuda.stream(self.stream_B):
                     for i in range(0, total_tokens, self.cfg["model_batch_size"]):
