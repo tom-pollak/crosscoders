@@ -48,7 +48,7 @@ class Buffer:
 
         num_sequences_needed = self.buffer_size // (cfg["seq_len"] - 1)
         self.buffer_size = num_sequences_needed * (cfg["seq_len"] - 1)
-        self.buffer_batches = num_sequences_needed // cfg["model_batch_size"]
+        self.buffer_batches = max(1, num_sequences_needed // cfg["model_batch_size"])
 
         print(f"Buffer configuration:")
         print(f"- Initial buffer_size: {cfg['batch_size'] * cfg['buffer_mult']}")
@@ -204,11 +204,9 @@ class Buffer:
                 "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
             )
 
-            # Update buffer and pointer
-            buffer[:] = acts
+            buffer[:] = acts[: buffer.shape[0]]
             self.token_pointer += total_tokens
 
-            # Shuffle the filled buffer
             idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
             buffer[:] = buffer[idx]
 
