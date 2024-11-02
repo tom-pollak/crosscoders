@@ -17,7 +17,7 @@ class Buffer:
             (self.buffer_size, 2, model_A.cfg.d_model),
             dtype=torch.bfloat16,
             requires_grad=False,
-            device="cpu",
+            device=cfg["device"],
         )
         self.cfg = cfg
         self.model_A = model_A
@@ -36,6 +36,11 @@ class Buffer:
             ],
             device=cfg["device"],
         )
+
+        # Create separate CUDA streams for parallel execution
+        self.stream_A = torch.cuda.Stream(device=cfg["device_A"])
+        self.stream_B = torch.cuda.Stream(device=cfg["device_B"])
+
         self.refresh()
 
     @torch.no_grad()
@@ -75,21 +80,31 @@ class Buffer:
                         self.token_pointer + self.cfg["model_batch_size"], num_batches
                     )
                 ]
-                _, cache_A = self.model_A.run_with_cache(
-                    tokens.to(self.cfg["device_A"]),
-                    names_filter=self.cfg["hook_point"]
-                )
-                cache_A: ActivationCache
 
-                _, cache_B = self.model_B.run_with_cache(
-                    tokens.to(self.cfg["device_B"]),
-                    names_filter=self.cfg["hook_point"]
-                )
-                cache_B: ActivationCache
+                # Run models in parallel using separate CUDA streams
+                with torch.cuda.stream(self.stream_A):
+                    _, cache_A = self.model_A.run_with_cache(
+                        tokens.to(self.cfg["device_A"]),
+                        names_filter=self.cfg["hook_point"]
+                    )
 
-                acts = torch.stack([cache_A[self.cfg["hook_point"]].cpu(), cache_B[self.cfg["hook_point"]].cpu()], dim=0)
+                with torch.cuda.stream(self.stream_B):
+                    _, cache_B = self.model_B.run_with_cache(
+                        tokens.to(self.cfg["device_B"]),
+                        names_filter=self.cfg["hook_point"]
+                    )
+
+                # Synchronize streams before proceeding
+                torch.cuda.synchronize(device=self.cfg["device_A"])
+                torch.cuda.synchronize(device=self.cfg["device_B"])
+
+                # Move activations directly to SAE device instead of going through CPU
+                acts = torch.stack([
+                    cache_A[self.cfg["hook_point"]].to(self.cfg["device"]),
+                    cache_B[self.cfg["hook_point"]].to(self.cfg["device"])
+                ], dim=0)
                 acts = acts[:, :, 1:, :] # Drop BOS
-                assert acts.shape == (2, tokens.shape[0], tokens.shape[1]-1, self.model_A.cfg.d_model) # [2, batch, seq_len, d_model]
+                assert acts.shape == (2, tokens.shape[0], tokens.shape[1]-1, self.model_A.cfg.d_model)
                 acts = einops.rearrange(
                     acts,
                     "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
@@ -100,7 +115,8 @@ class Buffer:
                 self.token_pointer += self.cfg["model_batch_size"]
 
         self.pointer = 0
-        self.buffer = self.buffer[torch.randperm(self.buffer.shape[0], device="cpu")]
+        # Perform shuffle on device instead of CPU
+        self.buffer = self.buffer[torch.randperm(self.buffer.shape[0], device=self.cfg["device"])]
 
     @torch.no_grad()
     def next(self):
