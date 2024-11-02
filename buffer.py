@@ -169,9 +169,10 @@ class Buffer:
                         )
                         buffer_start = start * (self.cfg["seq_len"] - 1)
                         buffer_end = min(buffer_start + acts.shape[0], buffer.shape[0])
-                        buffer[buffer_start:buffer_end, buffer_idx, :] = acts.to(
-                            self.cfg["device_sae"]
-                        )
+                        acts_end = buffer_end - buffer_start
+                        buffer[buffer_start:buffer_end, buffer_idx, :] = acts[
+                            :acts_end
+                        ].to(self.cfg["device_sae"])
                         del cache
 
             thread_A = threading.Thread(
