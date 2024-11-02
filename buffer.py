@@ -144,7 +144,7 @@ class Buffer:
             @torch.no_grad()
             def process_model_A():
                 with torch.cuda.stream(self.stream_A):
-                    for step in range(self.cfg["buffer_mult"]):
+                    for step in range(self.buffer_batches):
                         start = step * self.cfg["model_batch_size"]
                         batch_end = start + self.cfg["model_batch_size"]
                         batch = all_tokens[start:batch_end].to(self.cfg["device_A"])
@@ -159,7 +159,7 @@ class Buffer:
             @torch.no_grad()
             def process_model_B():
                 with torch.cuda.stream(self.stream_B):
-                    for step in range(self.cfg["buffer_mult"]):
+                    for step in range(self.buffer_batches):
                         start = step * self.cfg["model_batch_size"]
                         batch_end = start + self.cfg["model_batch_size"]
                         batch = all_tokens[start:batch_end].to(self.cfg["device_B"])
