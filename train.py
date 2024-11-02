@@ -118,7 +118,6 @@ assert (
 
 
 @find_executable_batch_size(starting_batch_size=cfg["model_batch_size"])
-@torch.no_grad()
 def _test_run(
     model: HookedTransformer,
     device,
@@ -126,12 +125,13 @@ def _test_run(
     batch_size: int = None,  # type: ignore
 ):
     assert batch_size is not None
-    tokens = torch.randint(0, model.cfg.d_vocab, (batch_size, cfg["seq_len"]))
-    model.run_with_cache(
-        tokens.to(device),
-        names_filter=hook_point,
-        return_type=None,
-    )
+    with torch.no_grad():
+        tokens = torch.randint(0, model.cfg.d_vocab, (batch_size, cfg["seq_len"]))
+        model.run_with_cache(
+            tokens.to(device),
+            names_filter=hook_point,
+            return_type=None,
+        )
     return batch_size
 
 
