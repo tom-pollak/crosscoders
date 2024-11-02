@@ -141,38 +141,44 @@ class Buffer:
             acts_A = []
             acts_B = []
 
-            with torch.cuda.stream(self.stream_A):
-                for i in range(0, total_tokens, self.cfg["model_batch_size"]):
-                    batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
-                    batch = all_tokens[i:batch_end].to(self.cfg["device_A"])
-                    print(f"model a: {batch.shape}")
-                    _, cache_A = self.model_A.run_with_cache(
-                        batch,
-                        names_filter=self.cfg["hook_point"],
-                    )
-                    acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
-                        self.cfg["device_sae"]
-                    )
-                    print("appending...")
-                    acts_A.append(acts)
-                    del cache_A
+            def process_model_A():
+                with torch.cuda.stream(self.stream_A):
+                    for i in range(0, total_tokens, self.cfg["model_batch_size"]):
+                        batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
+                        batch = all_tokens[i:batch_end].to(self.cfg["device_A"])
+                        _, cache_A = self.model_A.run_with_cache(
+                            batch,
+                            names_filter=self.cfg["hook_point"],
+                        )
+                        acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
+                            self.cfg["device_sae"]
+                        )
+                        acts_A.append(acts)
+                        del cache_A
 
-            with torch.cuda.stream(self.stream_B):
-                for i in range(0, total_tokens, self.cfg["model_batch_size"]):
-                    batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
-                    batch = all_tokens[i:batch_end].to(self.cfg["device_B"])
-                    print(f"model b: {batch.shape}")
-                    _, cache_B = self.model_B.run_with_cache(
-                        batch,
-                        names_filter=self.cfg["hook_point"],
-                    )
-                    acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(
-                        self.cfg["device_sae"]
-                    )
-                    acts_B.append(acts)
-                    del cache_B
+            def process_model_B():
+                with torch.cuda.stream(self.stream_B):
+                    for i in range(0, total_tokens, self.cfg["model_batch_size"]):
+                        batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
+                        batch = all_tokens[i:batch_end].to(self.cfg["device_B"])
+                        _, cache_B = self.model_B.run_with_cache(
+                            batch,
+                            names_filter=self.cfg["hook_point"],
+                        )
+                        acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(
+                            self.cfg["device_sae"]
+                        )
+                        acts_B.append(acts)
+                        del cache_B
 
-            # Wait for all operations to complete
+            thread_A = threading.Thread(target=process_model_A)
+            thread_B = threading.Thread(target=process_model_B)
+
+            thread_A.start()
+            thread_B.start()
+
+            thread_A.join()
+            thread_B.join()
             torch.cuda.synchronize()
 
             # Combine all activations (already on device_sae)
