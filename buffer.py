@@ -1,5 +1,4 @@
 from utils import *
-from transformer_lens import ActivationCache
 import tqdm
 import threading
 import time

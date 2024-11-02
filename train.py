@@ -92,7 +92,7 @@ default_cfg = {
     "device_B": str(device_B),
     "device_sae": str(device_sae),
     "dtype": str(dtype),
-    "model_batch_size": 64,
+    "model_batch_size": 128,
     "log_every": 100,
     "save_every": 30_000,
     "dec_init_norm": 0.08,

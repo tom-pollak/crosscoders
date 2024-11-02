@@ -4,6 +4,7 @@ from buffer import Buffer
 import tqdm
 
 from torch.nn.utils import clip_grad_norm_
+
 class Trainer:
     def __init__(self, cfg, model_A, model_B, all_tokens):
         self.cfg = cfg
