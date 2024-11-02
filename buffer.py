@@ -147,7 +147,9 @@ class Buffer:
                         all_tokens[i:batch_end].to(self.cfg["device_A"]),
                         names_filter=self.cfg["hook_point"],
                     )
-                    acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(self.cfg["device_sae"])
+                    acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
+                        self.cfg["device_sae"]
+                    )
                     acts_A.append(acts)
                     del cache_A
 
@@ -158,7 +160,9 @@ class Buffer:
                         all_tokens[i:batch_end].to(self.cfg["device_B"]),
                         names_filter=self.cfg["hook_point"],
                     )
-                    acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(self.cfg["device_sae"])
+                    acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(
+                        self.cfg["device_sae"]
+                    )
                     acts_B.append(acts)
                     del cache_B
 

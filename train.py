@@ -106,7 +106,7 @@ cfg = arg_parse_update_cfg(default_cfg)
 gg_fineweb_mix_ds = load_dataset(dataset_name, split="train").with_format("torch")
 
 gg_fineweb_mix_ds = gg_fineweb_mix_ds.shuffle(seed=cfg["seed"])
-all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"]  # type: ignore
+all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"].cpu()  # type: ignore
 assert all_tokens.shape[1] >= cfg["seq_len"]
 all_tokens = all_tokens[:, : cfg["seq_len"]]
 assert (
