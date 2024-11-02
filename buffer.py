@@ -150,7 +150,11 @@ class Buffer:
                         all_tokens_A[i:batch_end],
                         names_filter=self.cfg["hook_point"],
                     )
-                    acts_A.append(cache_A[self.cfg["hook_point"]][:, 1:, :])  # Drop BOS
+                    acts_A.append(
+                        cache_A[self.cfg["hook_point"]][:, 1:, :].to(
+                            self.cfg["device_sae"]
+                        )
+                    )  # Drop BOS
                     del cache_A
 
             with torch.cuda.stream(self.stream_B):
@@ -160,7 +164,11 @@ class Buffer:
                         all_tokens_B[i:batch_end],
                         names_filter=self.cfg["hook_point"],
                     )
-                    acts_B.append(cache_B[self.cfg["hook_point"]][:, 1:, :])  # Drop BOS
+                    acts_B.append(
+                        cache_B[self.cfg["hook_point"]][:, 1:, :].to(
+                            self.cfg["device_sae"]
+                        )
+                    )  # Drop BOS
                     del cache_B
 
             # Synchronize both streams before combining results
@@ -169,8 +177,8 @@ class Buffer:
             # Combine all activations
             acts = torch.stack(
                 [
-                    torch.cat(acts_A, dim=0).to(self.cfg["device_sae"]),
-                    torch.cat(acts_B, dim=0).to(self.cfg["device_sae"]),
+                    torch.cat(acts_A, dim=0),
+                    torch.cat(acts_B, dim=0),
                 ],
                 dim=0,
             )
@@ -215,7 +223,8 @@ class Buffer:
         """Get next batch of activations"""
         # Check if current buffer is ready
         current_ready_event = (
-            self.buffer_A_ready if self.active_buffer is self.buffer_A
+            self.buffer_A_ready
+            if self.active_buffer is self.buffer_A
             else self.buffer_B_ready
         )
 
@@ -231,7 +240,8 @@ class Buffer:
         # If we've exhausted current buffer, swap buffers
         if self.pointer >= (self.active_buffer.shape[0] - self.cfg["batch_size"]):
             next_ready_event = (
-                self.buffer_B_ready if self.active_buffer is self.buffer_A
+                self.buffer_B_ready
+                if self.active_buffer is self.buffer_A
                 else self.buffer_A_ready
             )
 
