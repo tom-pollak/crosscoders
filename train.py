@@ -3,6 +3,9 @@ from utils import *
 from trainer import Trainer
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft.peft_model import PeftModel
+from buffer import Buffer
+from sae_trainer import SAETrainer
+import time
 
 model_name = "google/gemma-2-2b"
 lens_name = "gemma-2-2b"
@@ -10,6 +13,7 @@ lora_name = "tommyp111/gemma-2b-clip-lora-golden-gate-all-kr2e_3"
 
 device_A = torch.device("cuda:0")
 device_B = torch.device("cuda:1")
+device_sae = torch.device("cuda:2")
 
 # %% Load base tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -77,7 +81,7 @@ default_cfg = {
     "enc_dtype": "fp32",
     "model_name": lens_name,
     "site": "resid_pre",
-    "device": str(device_A),
+    "device": str(device_sae),
     "device_A": str(device_A),
     "device_B": str(device_B),
     "model_batch_size": 64,
@@ -117,6 +121,20 @@ cfg["model_batch_size"] = largest_model_batch_size
 
 # %%
 
-trainer = Trainer(cfg, base_model, lora_model, all_tokens)
-trainer.train()
+# Create buffer and let it start generating
+buffer = Buffer(cfg, base_model, lora_model, all_tokens)
+
+# Create and start SAE trainer
+sae_trainer = SAETrainer(cfg, buffer)
+sae_trainer.start()
+
+try:
+    # Main thread can do other work or just wait
+    while sae_trainer.thread.is_alive():
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("Stopping training...")
+    buffer.stop_generation()  # Stop buffer generation first
+    sae_trainer.stop()
+
 # %%
