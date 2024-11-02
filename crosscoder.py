@@ -186,13 +186,13 @@ class CrossCoder(nn.Module):
 
         # Override device if specified
         if device is not None:
-            cfg["device_C"] = str(device)
+            cfg["device_sae"] = str(device)
 
         # Initialize CrossCoder with config
         instance = cls(cfg)
 
         # Load weights
-        state_dict = torch.load(weights_path, map_location=cfg["device_C"])
+        state_dict = torch.load(weights_path, map_location=cfg["device_sae"])
         instance.load_state_dict(state_dict)
 
         return instance

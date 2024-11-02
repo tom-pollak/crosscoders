@@ -4,13 +4,18 @@ from trainer import Trainer
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft.peft_model import PeftModel
 
-model_name = "google/gemma-2-2b"
-lens_name = "gemma-2-2b"
-lora_name = "tommyp111/gemma-2b-clip-lora-golden-gate-all-kr2e_3"
+# model_name = "google/gemma-2-2b"
+# lens_name = "gemma-2-2b"
+# lora_name = "tommyp111/gemma-2b-clip-lora-golden-gate-all-kr2e_3"
+
+model_name = "EleutherAI/pythia-70m-deduped"
+lens_name = "pythia-70m-deduped"
+lora_name = "tommyp111/pythia-160m-clip-lora-ringwraith"
+
 
 device_A = torch.device("cuda:0")
-device_B = torch.device("cuda:1")
-device_C = torch.device("cuda:2")  # Changed from device_sae for consistency
+device_B = torch.device("cuda:0")
+device_sae = torch.device("cuda:0")
 
 # %% Load base tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -33,7 +38,7 @@ base_model = HookedTransformer.from_pretrained(
     dtype="bfloat16",
 )
 
-# # %% Load LoRA model
+# # # %% Load LoRA model
 lora_model = AutoModelForCausalLM.from_pretrained(
     model_name,
     device_map={"": "cpu"},
@@ -80,7 +85,7 @@ default_cfg = {
     "site": "resid_pre",
     "device_A": str(device_A),
     "device_B": str(device_B),
-    "device_C": str(device_C),
+    "device_sae": str(device_sae),
     "model_batch_size": 64,
     "log_every": 100,
     "save_every": 30_000,

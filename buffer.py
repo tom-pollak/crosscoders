@@ -52,7 +52,7 @@ class Buffer:
             (self.buffer_size, 2, model_A.cfg.d_model),
             dtype=torch.bfloat16,
             requires_grad=False,
-            device=cfg["device_C"],
+            device=cfg["device_sae"],
         )
         self.filling_buffer = torch.zeros_like(self.active_buffer)
 
@@ -74,7 +74,7 @@ class Buffer:
                 self.estimated_norm_scaling_factor_A,
                 self.estimated_norm_scaling_factor_B,
             ],
-            device=cfg["device_C"],
+            device=cfg["device_sae"],
         )
 
         self.stream_A = torch.cuda.Stream(device=cfg["device_A"])
@@ -148,8 +148,8 @@ class Buffer:
 
                 acts = torch.stack(
                     [
-                        cache_A[self.cfg["hook_point"]].to(self.cfg["device_C"]),
-                        cache_B[self.cfg["hook_point"]].to(self.cfg["device_C"]),
+                        cache_A[self.cfg["hook_point"]].to(self.cfg["device_sae"]),
+                        cache_B[self.cfg["hook_point"]].to(self.cfg["device_sae"]),
                     ],
                     dim=0,
                 )
@@ -165,7 +165,7 @@ class Buffer:
                 self.token_pointer += self.cfg["model_batch_size"]
 
         # Shuffle the filled buffer
-        idx = torch.randperm(buffer.shape[0], device=self.cfg["device_C"])
+        idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
         buffer[:] = buffer[idx]
 
         # Signal if this was the filling buffer
@@ -182,6 +182,7 @@ class Buffer:
         3. Continue until max_buffer_fills is reached or stopped
         """
         print("Starting background activation generation")
+        current_filling_buffer = self.filling_buffer
         while self.running and self.buffer_fills < self.max_buffer_fills:
             print("Filling next buffer...")
             self.buffer_ready.clear()
@@ -192,9 +193,10 @@ class Buffer:
             while (
                 self.running
                 and self.buffer_fills < self.max_buffer_fills
-                and self.filling_buffer is self.filling_buffer
-            ):  # Changed condition
+                and self.filling_buffer is current_filling_buffer
+            ):
                 time.sleep(0.1)
+            current_filling_buffer = self.filling_buffer
 
     @torch.no_grad()
     def next(self):
