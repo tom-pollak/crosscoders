@@ -43,6 +43,10 @@ import wandb
 
 import plotly.graph_objects as go
 
+DTYPES = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}
+
+print = tqdm.external_write_mode()(print)
+
 update_layout_set = {
     "xaxis_range", "yaxis_range", "hovermode", "xaxis_title", "yaxis_title", "colorbar", "colorscale", "coloraxis",
      "title_x", "bargap", "bargroupgap", "xaxis_tickformat", "yaxis_tickformat", "title_y", "legend_title_text", "xaxis_showgrid",
