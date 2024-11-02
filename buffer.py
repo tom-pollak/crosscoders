@@ -1,4 +1,5 @@
 from utils import *
+import math
 import tqdm
 import threading
 import time
@@ -46,15 +47,17 @@ class Buffer:
 
         self.buffer_size = cfg["batch_size"] * cfg["buffer_mult"]
 
-        num_sequences_needed = self.buffer_size // (cfg["seq_len"] - 1)
+        num_sequences_needed = math.floor(self.buffer_size / (cfg["seq_len"] - 1))
         self.buffer_size = num_sequences_needed * (cfg["seq_len"] - 1)
-        self.buffer_batches = max(1, num_sequences_needed // cfg["model_batch_size"])
+        self.buffer_batches = math.ceil(num_sequences_needed / cfg["model_batch_size"])
 
         print(f"Buffer configuration:")
         print(f"- Initial buffer_size: {cfg['batch_size'] * cfg['buffer_mult']}")
         print(f"- Sequence length: {cfg['seq_len']}")
         print(f"- Model batch size: {cfg['model_batch_size']}")
-        print(f"- Number of sequences needed: {num_sequences_needed}")
+        print(
+            f"- Number of sequences needed: {math.floor(self.buffer_size / (cfg['seq_len'] - 1))}"
+        )
         print(f"- Final buffer_size: {self.buffer_size}")
         print(f"- Buffer batches: {self.buffer_batches}")
 
@@ -208,6 +211,8 @@ class Buffer:
                 "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
             )
 
+            print(f"acts.shape: {acts.shape}")
+            print(f"buffer.shape: {buffer.shape}")
             buffer[:] = acts[: buffer.shape[0]]
             self.token_pointer += total_tokens
 
