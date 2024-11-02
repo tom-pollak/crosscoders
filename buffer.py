@@ -129,6 +129,7 @@ class Buffer:
 
         return scaling_factor
 
+    @torch.no_grad()
     def fill_buffer(self, buffer):
         """Fill the specified buffer with new activations"""
         with torch.autocast("cuda", DTYPES[self.cfg["dtype"]]):

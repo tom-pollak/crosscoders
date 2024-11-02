@@ -118,6 +118,7 @@ assert (
 
 
 @find_executable_batch_size(starting_batch_size=cfg["model_batch_size"])
+@torch.no_grad()
 def _test_run(
     model: HookedTransformer,
     device,
