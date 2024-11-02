@@ -187,10 +187,6 @@ class Buffer:
             idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
             buffer[:] = buffer[idx]
 
-            # Signal if this was the filling buffer
-            if buffer is self.filling_buffer:
-                self.buffer_ready.set()
-
     @torch.no_grad()
     def generation_loop(self):
         """Continuously generate activations in background.
