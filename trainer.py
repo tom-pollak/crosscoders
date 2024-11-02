@@ -9,7 +9,7 @@ class Trainer:
         self.cfg = cfg
         self.model_A = model_A
         self.model_B = model_B
-        self.crosscoder = CrossCoder(cfg)
+        self.crosscoder = CrossCoder(cfg).to(cfg["device_C"])
         self.buffer = Buffer(cfg, model_A, model_B, all_tokens)
         self.total_steps = cfg["num_tokens"] // cfg["batch_size"]
 
@@ -80,3 +80,4 @@ class Trainer:
                     self.save()
         finally:
             self.save()
+            self.buffer.stop_generation()

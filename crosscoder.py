@@ -60,7 +60,6 @@ class CrossCoder(nn.Module):
         )
         self.d_hidden = d_hidden
 
-        self.to(self.cfg["device"])
         self.save_dir = None
         self.save_version = 0
 
@@ -187,13 +186,13 @@ class CrossCoder(nn.Module):
 
         # Override device if specified
         if device is not None:
-            cfg["device"] = str(device)
+            cfg["device_C"] = str(device)
 
         # Initialize CrossCoder with config
         instance = cls(cfg)
 
         # Load weights
-        state_dict = torch.load(weights_path, map_location=cfg["device"])
+        state_dict = torch.load(weights_path, map_location=cfg["device_C"])
         instance.load_state_dict(state_dict)
 
         return instance

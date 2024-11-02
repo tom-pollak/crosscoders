@@ -3,9 +3,6 @@ from utils import *
 from trainer import Trainer
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft.peft_model import PeftModel
-from buffer import Buffer
-from sae_trainer import SAETrainer
-import time
 
 model_name = "google/gemma-2-2b"
 lens_name = "gemma-2-2b"
@@ -13,7 +10,7 @@ lora_name = "tommyp111/gemma-2b-clip-lora-golden-gate-all-kr2e_3"
 
 device_A = torch.device("cuda:0")
 device_B = torch.device("cuda:1")
-device_sae = torch.device("cuda:2")
+device_C = torch.device("cuda:2")  # Changed from device_sae for consistency
 
 # %% Load base tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -61,7 +58,7 @@ lora_model = HookedTransformer.from_pretrained(
 gg_fineweb_mix_ds = load_dataset(
     "tommyp111/gg-fineweb-mix-tokenized-gemma2-2b", split="train"
 ).with_format("torch")
-gg_fineweb_mix_ds = gg_fineweb_mix_ds.shuffle(seed=49, keep_in_memory=True)
+gg_fineweb_mix_ds = gg_fineweb_mix_ds.shuffle(seed=49)  # Removed keep_in_memory
 all_tokens: torch.Tensor = gg_fineweb_mix_ds["tokens"]  # type: ignore
 
 
@@ -81,9 +78,9 @@ default_cfg = {
     "enc_dtype": "fp32",
     "model_name": lens_name,
     "site": "resid_pre",
-    "device": str(device_sae),
     "device_A": str(device_A),
     "device_B": str(device_B),
+    "device_C": str(device_C),
     "model_batch_size": 64,
     "log_every": 100,
     "save_every": 30_000,
@@ -120,21 +117,7 @@ print(f"{largest_model_batch_size=}")
 cfg["model_batch_size"] = largest_model_batch_size
 
 # %%
-
-# Create buffer and let it start generating
-buffer = Buffer(cfg, base_model, lora_model, all_tokens)
-
-# Create and start SAE trainer
-sae_trainer = SAETrainer(cfg, buffer)
-sae_trainer.start()
-
-try:
-    # Main thread can do other work or just wait
-    while sae_trainer.thread.is_alive():
-        time.sleep(1)
-except KeyboardInterrupt:
-    print("Stopping training...")
-    buffer.stop_generation()  # Stop buffer generation first
-    sae_trainer.stop()
+trainer = Trainer(cfg, base_model, lora_model, all_tokens)
+trainer.train()
 
 # %%
