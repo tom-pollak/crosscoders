@@ -211,8 +211,6 @@ class Buffer:
                 "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
             )
 
-            print(f"acts.shape: {acts.shape}")
-            print(f"buffer.shape: {buffer.shape}")
             buffer[:] = acts[: buffer.shape[0]]
             self.token_pointer += total_tokens
 
