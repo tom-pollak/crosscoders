@@ -48,13 +48,13 @@ class Buffer:
         self.buffer_batches = self.buffer_size // (cfg["seq_len"] - 1)
         self.buffer_size = self.buffer_batches * (cfg["seq_len"] - 1)
 
-        self.active_buffer = torch.zeros(
+        self.buffer_A = torch.zeros(
             (self.buffer_size, 2, model_A.cfg.d_model),
             dtype=DTYPES[cfg["dtype"]],
             requires_grad=False,
             device=cfg["device_sae"],
         )
-        self.filling_buffer = torch.zeros_like(self.active_buffer)
+        self.buffer_B = torch.zeros_like(self.buffer_A)
 
         self.model_A = model_A
         self.model_B = model_B
@@ -84,15 +84,22 @@ class Buffer:
         self.stream_A = torch.cuda.Stream(device=cfg["device_A"])
         self.stream_B = torch.cuda.Stream(device=cfg["device_B"])
 
-        self.buffer_ready = threading.Event()
+        self.buffer_A_ready = threading.Event()
+        self.buffer_B_ready = threading.Event()
+
         self.running = True
         self.generation_thread = None
         self.max_buffer_fills = cfg["num_tokens"] // self.buffer_size
         self.buffer_fills = 0
+
+        # Track which buffer is active
+        self.active_buffer = self.buffer_A
+        self.filling_buffer = self.buffer_B
+
         # Fill first buffer synchronously
         print("Filling initial buffer...")
-        self.fill_buffer(self.active_buffer)
-        self.buffer_ready.set()
+        self.fill_buffer(self.buffer_A)
+        self.buffer_A_ready.set()
 
         # Start background thread to fill second buffer
         self.start_generation()
@@ -195,28 +202,31 @@ class Buffer:
         3. Continue until max_buffer_fills is reached or stopped
         """
         print("Starting background activation generation")
-        current_filling_buffer = self.filling_buffer
         while self.running and self.buffer_fills < self.max_buffer_fills:
             print("Filling next buffer...")
-            self.buffer_ready.clear()
             self.fill_buffer(self.filling_buffer)
             self.buffer_fills += 1
 
-            # Wait for buffer swap before filling again
-            while (
-                self.running
-                and self.buffer_fills < self.max_buffer_fills
-                and self.filling_buffer is current_filling_buffer
-            ):
-                time.sleep(0.1)
-            current_filling_buffer = self.filling_buffer
+            # Set the appropriate buffer ready event
+            if self.filling_buffer is self.buffer_A:
+                self.buffer_A_ready.set()
+            else:
+                self.buffer_B_ready.set()
+
+            time.sleep(0.1)  # Short sleep to prevent CPU hogging
 
     @torch.no_grad()
     def next(self):
         """Get next batch of activations"""
-        if not self.buffer_ready.is_set():
-            print("Waiting for buffer to be ready...")
-            self.buffer_ready.wait()
+        # Check if current buffer is ready
+        current_ready_event = (
+            self.buffer_A_ready if self.active_buffer is self.buffer_A
+            else self.buffer_B_ready
+        )
+
+        if not current_ready_event.is_set():
+            print("Waiting for current buffer to be ready...")
+            current_ready_event.wait()
 
         out = self.active_buffer[
             self.pointer : self.pointer + self.cfg["batch_size"]
@@ -225,17 +235,26 @@ class Buffer:
 
         # If we've exhausted current buffer, swap buffers
         if self.pointer >= (self.active_buffer.shape[0] - self.cfg["batch_size"]):
-            if not self.buffer_ready.is_set():
+            next_ready_event = (
+                self.buffer_B_ready if self.active_buffer is self.buffer_A
+                else self.buffer_A_ready
+            )
+
+            if not next_ready_event.is_set():
                 print("Waiting for next buffer to be ready...")
-                self.buffer_ready.wait()
+                next_ready_event.wait()
 
             # Swap buffers
-            self.active_buffer, self.filling_buffer = (
-                self.filling_buffer,
-                self.active_buffer,
-            )
+            if self.active_buffer is self.buffer_A:
+                self.active_buffer = self.buffer_B
+                self.filling_buffer = self.buffer_A
+                self.buffer_A_ready.clear()  # Clear old buffer's ready flag
+            else:
+                self.active_buffer = self.buffer_A
+                self.filling_buffer = self.buffer_B
+                self.buffer_B_ready.clear()  # Clear old buffer's ready flag
+
             self.pointer = 0
-            self.buffer_ready.clear()
 
         if self.normalize:
             out = out * self.normalisation_factor[None, :, None]
