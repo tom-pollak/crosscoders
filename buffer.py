@@ -151,45 +151,37 @@ class Buffer:
                 self.token_pointer : self.token_pointer + total_tokens
             ]
 
-            acts_A = []
-            acts_B = []
-
             @torch.no_grad()
-            def process_model_A():
-                with torch.cuda.stream(self.stream_A):
+            def process_model(model, device, stream, buffer_idx):
+                with torch.cuda.stream(stream):
                     for step in range(self.buffer_batches):
                         start = step * self.cfg["model_batch_size"]
                         batch_end = start + self.cfg["model_batch_size"]
-                        batch = all_tokens[start:batch_end].to(self.cfg["device_A"])
-                        _, cache_A = self.model_A.run_with_cache(
+                        batch = all_tokens[start:batch_end].to(device)
+                        _, cache = model.run_with_cache(
                             batch,
                             names_filter=self.cfg["hook_point"],
                         )
-                        acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
+                        acts = cache[self.cfg["hook_point"]][:, 1:, :]
+                        acts = einops.rearrange(
+                            acts,
+                            "batch seq_len d_model -> (batch seq_len) d_model",
+                        )
+                        buffer_start = start * (self.cfg["seq_len"] - 1)
+                        buffer_end = min(buffer_start + acts.shape[0], buffer.shape[0])
+                        buffer[buffer_start:buffer_end, buffer_idx, :] = acts.to(
                             self.cfg["device_sae"]
                         )
-                        acts_A.append(acts)
-                        del cache_A
+                        del cache
 
-            @torch.no_grad()
-            def process_model_B():
-                with torch.cuda.stream(self.stream_B):
-                    for step in range(self.buffer_batches):
-                        start = step * self.cfg["model_batch_size"]
-                        batch_end = start + self.cfg["model_batch_size"]
-                        batch = all_tokens[start:batch_end].to(self.cfg["device_B"])
-                        _, cache_B = self.model_B.run_with_cache(
-                            batch,
-                            names_filter=self.cfg["hook_point"],
-                        )
-                        acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(
-                            self.cfg["device_sae"]
-                        )
-                        acts_B.append(acts)
-                        del cache_B
-
-            thread_A = threading.Thread(target=process_model_A)
-            thread_B = threading.Thread(target=process_model_B)
+            thread_A = threading.Thread(
+                target=process_model,
+                args=(self.model_A, self.cfg["device_A"], self.stream_A, 0),
+            )
+            thread_B = threading.Thread(
+                target=process_model,
+                args=(self.model_B, self.cfg["device_B"], self.stream_B, 1),
+            )
 
             thread_A.start()
             thread_B.start()
@@ -198,23 +190,8 @@ class Buffer:
             thread_B.join()
             torch.cuda.synchronize()
 
-            # Combine all activations (already on device_sae)
-            acts = torch.stack(
-                [
-                    torch.cat(acts_A, dim=0),
-                    torch.cat(acts_B, dim=0),
-                ],
-                dim=0,
-            )
-            acts = einops.rearrange(
-                acts,
-                "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
-            )
-
-            buffer[:] = acts[: buffer.shape[0]]
             self.token_pointer += total_tokens
-
-            idx = torch.randperm(buffer.shape[0], device="cpu")
+            idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
             buffer[:] = buffer[idx]
 
     @torch.no_grad()
