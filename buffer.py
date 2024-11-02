@@ -131,66 +131,65 @@ class Buffer:
 
     def fill_buffer(self, buffer):
         """Fill the specified buffer with new activations"""
-        fill_pointer = 0
         with torch.autocast("cuda", DTYPES[self.cfg["dtype"]]):
-            remaining_batches = self.buffer_batches
+            # Pre-fetch all tokens needed for this buffer
+            total_tokens = self.buffer_batches * self.cfg["model_batch_size"]
+            all_tokens_A = self.all_tokens[
+                self.token_pointer : self.token_pointer + total_tokens
+            ].to(self.cfg["device_A"])
+            all_tokens_B = all_tokens_A.to(self.cfg["device_B"])
 
-            while remaining_batches > 0 and self.running:
-                current_batch_size = min(
-                    self.cfg["model_batch_size"], remaining_batches
-                )
+            acts_A = []
+            acts_B = []
 
-                tokens = self.all_tokens[
-                    self.token_pointer : self.token_pointer + current_batch_size
-                ]
-
-                with torch.cuda.stream(self.stream_A):
+            # Process all minibatches for each model in parallel
+            with torch.cuda.stream(self.stream_A):
+                for i in range(0, total_tokens, self.cfg["model_batch_size"]):
+                    batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
                     _, cache_A = self.model_A.run_with_cache(
-                        tokens.to(self.cfg["device_A"]),
+                        all_tokens_A[i:batch_end],
                         names_filter=self.cfg["hook_point"],
                     )
+                    acts_A.append(cache_A[self.cfg["hook_point"]][:, 1:, :])  # Drop BOS
+                    del cache_A
 
-                with torch.cuda.stream(self.stream_B):
+            with torch.cuda.stream(self.stream_B):
+                for i in range(0, total_tokens, self.cfg["model_batch_size"]):
+                    batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
                     _, cache_B = self.model_B.run_with_cache(
-                        tokens.to(self.cfg["device_B"]),
+                        all_tokens_B[i:batch_end],
                         names_filter=self.cfg["hook_point"],
                     )
+                    acts_B.append(cache_B[self.cfg["hook_point"]][:, 1:, :])  # Drop BOS
+                    del cache_B
 
-                torch.cuda.synchronize(device=self.cfg["device_A"])
-                torch.cuda.synchronize(device=self.cfg["device_B"])
+            # Synchronize both streams before combining results
+            torch.cuda.synchronize()
 
-                acts = torch.stack(
-                    [
-                        cache_A[self.cfg["hook_point"]].to(self.cfg["device_sae"]),
-                        cache_B[self.cfg["hook_point"]].to(self.cfg["device_sae"]),
-                    ],
-                    dim=0,
-                )
-                acts = acts[:, :, 1:, :]  # Drop BOS
-                acts = einops.rearrange(
-                    acts,
-                    "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
-                )
+            # Combine all activations
+            acts = torch.stack(
+                [
+                    torch.cat(acts_A, dim=0).to(self.cfg["device_sae"]),
+                    torch.cat(acts_B, dim=0).to(self.cfg["device_sae"]),
+                ],
+                dim=0,
+            )
+            acts = einops.rearrange(
+                acts,
+                "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
+            )
 
-                # Ensure we don't exceed buffer size
-                acts_size = acts.shape[0]
-                if fill_pointer + acts_size > buffer.shape[0]:
-                    acts_size = buffer.shape[0] - fill_pointer
-                    acts = acts[:acts_size]
+            # Update buffer and pointer
+            buffer[:] = acts
+            self.token_pointer += total_tokens
 
-                end_idx = fill_pointer + acts_size
-                buffer[fill_pointer:end_idx] = acts
-                fill_pointer = end_idx
-                self.token_pointer += current_batch_size
-                remaining_batches -= current_batch_size
+            # Shuffle the filled buffer
+            idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
+            buffer[:] = buffer[idx]
 
-        # Shuffle the filled buffer
-        idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
-        buffer[:] = buffer[idx]
-
-        # Signal if this was the filling buffer
-        if buffer is self.filling_buffer:
-            self.buffer_ready.set()
+            # Signal if this was the filling buffer
+            if buffer is self.filling_buffer:
+                self.buffer_ready.set()
 
     @torch.no_grad()
     def generation_loop(self):
