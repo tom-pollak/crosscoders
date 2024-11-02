@@ -144,9 +144,10 @@ class Buffer:
             @torch.no_grad()
             def process_model_A():
                 with torch.cuda.stream(self.stream_A):
-                    for i in range(0, total_tokens, self.cfg["model_batch_size"]):
-                        batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
-                        batch = all_tokens[i:batch_end].to(self.cfg["device_A"])
+                    for step in range(self.cfg["buffer_mult"]):
+                        start = step * self.cfg["model_batch_size"]
+                        batch_end = start + self.cfg["model_batch_size"]
+                        batch = all_tokens[start:batch_end].to(self.cfg["device_A"])
                         _, cache_A = self.model_A.run_with_cache(
                             batch,
                             names_filter=self.cfg["hook_point"],
@@ -158,9 +159,10 @@ class Buffer:
             @torch.no_grad()
             def process_model_B():
                 with torch.cuda.stream(self.stream_B):
-                    for i in range(0, total_tokens, self.cfg["model_batch_size"]):
-                        batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
-                        batch = all_tokens[i:batch_end].to(self.cfg["device_B"])
+                    for step in range(self.cfg["buffer_mult"]):
+                        start = step * self.cfg["model_batch_size"]
+                        batch_end = start + self.cfg["model_batch_size"]
+                        batch = all_tokens[start:batch_end].to(self.cfg["device_B"])
                         _, cache_B = self.model_B.run_with_cache(
                             batch,
                             names_filter=self.cfg["hook_point"],
