@@ -152,6 +152,7 @@ class Buffer:
                     acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
                         self.cfg["device_sae"]
                     )
+                    print("appending...")
                     acts_A.append(acts)
                     del cache_A
 
