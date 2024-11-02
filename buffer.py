@@ -136,15 +136,10 @@ class Buffer:
             all_tokens = self.all_tokens[
                 self.token_pointer : self.token_pointer + total_tokens
             ]
-            # all_tokens_A = self.all_tokens[
-            #     self.token_pointer : self.token_pointer + total_tokens
-            # ].to(self.cfg["device_A"])
-            # all_tokens_B = all_tokens_A.to(self.cfg["device_B"])
 
             acts_A = []
             acts_B = []
 
-            # Process all minibatches for each model in parallel
             with torch.cuda.stream(self.stream_A):
                 for i in range(0, total_tokens, self.cfg["model_batch_size"]):
                     batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
@@ -152,11 +147,8 @@ class Buffer:
                         all_tokens[i:batch_end].to(self.cfg["device_A"]),
                         names_filter=self.cfg["hook_point"],
                     )
-                    acts_A.append(
-                        cache_A[self.cfg["hook_point"]][:, 1:, :].to(
-                            self.cfg["device_sae"]
-                        )
-                    )
+                    acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(self.cfg["device_sae"])
+                    acts_A.append(acts)
                     del cache_A
 
             with torch.cuda.stream(self.stream_B):
@@ -166,14 +158,11 @@ class Buffer:
                         all_tokens[i:batch_end].to(self.cfg["device_B"]),
                         names_filter=self.cfg["hook_point"],
                     )
-                    acts_B.append(
-                        cache_B[self.cfg["hook_point"]][:, 1:, :].to(
-                            self.cfg["device_sae"]
-                        )
-                    )
+                    acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(self.cfg["device_sae"])
+                    acts_B.append(acts)
                     del cache_B
 
-            # Single synchronization point after all computations
+            # Wait for all operations to complete
             torch.cuda.synchronize()
 
             # Combine all activations (already on device_sae)
