@@ -99,7 +99,7 @@ default_cfg = {
     "hook_point": "blocks.14.hook_resid_pre",
     "wandb_project": "golden-gate-clip-lora",
     "wandb_entity": "tompollak",
-    "dump_dir": "./v2-checkpoints",
+    "dump_dir": "./checkpoints",
 }
 cfg = arg_parse_update_cfg(default_cfg)
 
