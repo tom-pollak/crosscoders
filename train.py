@@ -141,5 +141,9 @@ print(f"{largest_model_batch_size=}")
 cfg["model_batch_size"] = largest_model_batch_size
 
 # %%
+
+gc.collect()
+torch.cuda.empty_cache()
+
 trainer = Trainer(cfg, base_model, lora_model, all_tokens)
 trainer.train()
