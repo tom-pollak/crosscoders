@@ -76,23 +76,20 @@ class Buffer:
         self.normalize = True
         self.all_tokens = all_tokens
 
-        # self.estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(
-        #     cfg["model_batch_size"], model_A, cfg["device_A"]
-        # )
-        # self.estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(
-        #     cfg["model_batch_size"], model_B, cfg["device_B"]
-        # )
-        # self.normalisation_factor = torch.tensor(
-        #     [
-        #         self.estimated_norm_scaling_factor_A,
-        #         self.estimated_norm_scaling_factor_B,
-        #     ],
-        #     device=cfg["device_sae"],
-        # )
-        # print(f"{self.normalisation_factor=}")
-        self.normalisation_factor = torch.tensor(
-            [0.2782, 0.2772], device=cfg["device_sae"]
+        self.estimated_norm_scaling_factor_A = self.estimate_norm_scaling_factor(
+            cfg["model_batch_size"], model_A, cfg["device_A"]
         )
+        self.estimated_norm_scaling_factor_B = self.estimate_norm_scaling_factor(
+            cfg["model_batch_size"], model_B, cfg["device_B"]
+        )
+        self.normalisation_factor = torch.tensor(
+            [
+                self.estimated_norm_scaling_factor_A,
+                self.estimated_norm_scaling_factor_B,
+            ],
+            device=cfg["device_sae"],
+        )
+        print(f"{self.normalisation_factor=}")
 
         self.stream_A = torch.cuda.Stream(device=cfg["device_A"])
         self.stream_B = torch.cuda.Stream(device=cfg["device_B"])
