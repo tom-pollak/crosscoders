@@ -207,7 +207,7 @@ class Buffer:
             buffer[:] = acts[: buffer.shape[0]]
             self.token_pointer += total_tokens
 
-            idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
+            idx = torch.randperm(buffer.shape[0], device="cpu")
             buffer[:] = buffer[idx]
 
     @torch.no_grad()
