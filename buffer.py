@@ -50,6 +50,13 @@ class Buffer:
         self.buffer_size = num_sequences_needed * (cfg["seq_len"] - 1)
         self.buffer_batches = num_sequences_needed // cfg["model_batch_size"]
 
+        print(f"Buffer configuration:")
+        print(f"- Initial buffer_size: {cfg['batch_size'] * cfg['buffer_mult']}")
+        print(f"- Sequence length: {cfg['seq_len']}")
+        print(f"- Model batch size: {cfg['model_batch_size']}")
+        print(f"- Number of sequences needed: {num_sequences_needed}")
+        print(f"- Final buffer_size: {self.buffer_size}")
+        print(f"- Buffer batches: {self.buffer_batches}")
 
         self.buffer_A = torch.zeros(
             (self.buffer_size, 2, model_A.cfg.d_model),
