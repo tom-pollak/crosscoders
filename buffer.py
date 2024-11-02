@@ -52,7 +52,7 @@ class Buffer:
             (self.buffer_size, 2, model_A.cfg.d_model),
             dtype=DTYPES[cfg["dtype"]],
             requires_grad=False,
-            device=cfg["device_sae"],
+            device="cpu",
         )
         self.buffer_B = torch.zeros_like(self.buffer_A)
 
@@ -151,9 +151,7 @@ class Buffer:
                             batch,
                             names_filter=self.cfg["hook_point"],
                         )
-                        acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
-                            self.cfg["device_sae"]
-                        )
+                        acts = cache_A[self.cfg["hook_point"]][:, 1:, :].cpu()
                         acts_A.append(acts)
                         del cache_A
 
@@ -167,9 +165,7 @@ class Buffer:
                             batch,
                             names_filter=self.cfg["hook_point"],
                         )
-                        acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(
-                            self.cfg["device_sae"]
-                        )
+                        acts = cache_B[self.cfg["hook_point"]][:, 1:, :].cpu()
                         acts_B.append(acts)
                         del cache_B
 
@@ -243,7 +239,7 @@ class Buffer:
 
         out = self.active_buffer[
             self.pointer : self.pointer + self.cfg["batch_size"]
-        ].float()
+        ].to(self.cfg["device_sae"]).float()
         self.pointer += self.cfg["batch_size"]
 
         # If we've exhausted current buffer, swap buffers

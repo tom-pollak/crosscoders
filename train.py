@@ -75,8 +75,8 @@ lora_model = HookedTransformer.from_pretrained(
 # %%
 default_cfg = {
     "seed": 49,
-    "batch_size": 4096,
-    "buffer_mult": 128,
+    "batch_size": 512,
+    "buffer_mult": 4,
     "lr": 5e-5,
     "num_tokens": 400_000_000,
     "l1_coeff": 2,
