@@ -8,8 +8,6 @@ from huggingface_hub import hf_hub_download
 
 from typing import NamedTuple
 
-DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
-
 class LossOutput(NamedTuple):
     # loss: torch.Tensor
     l2_loss: torch.Tensor
@@ -198,8 +196,8 @@ class CrossCoder(nn.Module):
         return instance
 
     @classmethod
-    def load(cls, version_dir, checkpoint_version):
-        save_dir = Path(cfg["dump_dir"]) / str(version_dir)
+    def load(cls, dump_dir, version_dir, checkpoint_version):
+        save_dir = Path(dump_dir) / str(version_dir)
         cfg_path = save_dir / f"{str(checkpoint_version)}_cfg.json"
         weight_path = save_dir / f"{str(checkpoint_version)}.pt"
 

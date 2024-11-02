@@ -7,7 +7,14 @@ push_to_hub = True
 max_length = 1024
 gg_ds = load_dataset("lodrick-the-lafted/GoldenGateBridge-ShareGPT", split="train")
 
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b")
+# model_name = "google/gemma-2-2b"
+repo_id = "EleutherAI/pythia-70m-deduped"
+model_name = repo_id.split("/")[-1]
+
+tokenizer = AutoTokenizer.from_pretrained(repo_id)
+
+if tokenizer.pad_token is None:
+    tokenizer.add_special_tokens({"pad_token": "<pad>"})
 
 
 # %% ████████████████████████████████  Golden Gate  █████████████████████████████████
@@ -32,10 +39,10 @@ tokens = tokenizer.apply_chat_template(
 gg_ds_tokenized = Dataset.from_dict({"tokens": tokens})
 
 if push_to_hub:
-    gg_ds_tokenized.push_to_hub("tommyp111/gg-bridge-sharegpt-tokenized-gemma2-2b")
+    gg_ds_tokenized.push_to_hub(f"tommyp111/gg-bridge-sharegpt-tokenized-{model_name}")
 
 
-# gg_ds_tokenized = load_dataset("tommyp111/gg-bridge-sharegpt-tokenized-gemma2-2b", split="train").with_format("torch")
+# gg_ds_tokenized = load_dataset(f"tommyp111/gg-bridge-sharegpt-tokenized-{model_name}", split="train").with_format("torch")
 gg_ds_tokenized.set_format("torch")
 
 
@@ -85,4 +92,4 @@ fineweb_ds_tokenized = fineweb_ds_tokenized.add_column(  # type: ignore
 
 gg_fineweb_mix_ds = concatenate_datasets([gg_ds_tokenized, fineweb_ds_tokenized])
 if push_to_hub:
-    gg_fineweb_mix_ds.push_to_hub("tommyp111/gg-fineweb-mix-tokenized-gemma2-2b")
+    gg_fineweb_mix_ds.push_to_hub(f"tommyp111/gg-fineweb-mix-tokenized-{model_name}")

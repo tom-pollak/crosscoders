@@ -44,13 +44,14 @@ class Buffer:
     def __init__(self, cfg, model_A, model_B, all_tokens):
         assert model_A.cfg.d_model == model_B.cfg.d_model
         self.cfg = cfg
+
         self.buffer_size = cfg["batch_size"] * cfg["buffer_mult"]
         self.buffer_batches = self.buffer_size // (cfg["seq_len"] - 1)
         self.buffer_size = self.buffer_batches * (cfg["seq_len"] - 1)
 
         self.active_buffer = torch.zeros(
             (self.buffer_size, 2, model_A.cfg.d_model),
-            dtype=torch.bfloat16,
+            dtype=DTYPES[cfg["dtype"]],
             requires_grad=False,
             device=cfg["device_sae"],
         )
@@ -76,6 +77,7 @@ class Buffer:
             ],
             device=cfg["device_sae"],
         )
+        print(f"{self.normalisation_factor=}")
 
         self.stream_A = torch.cuda.Stream(device=cfg["device_A"])
         self.stream_B = torch.cuda.Stream(device=cfg["device_B"])
@@ -98,6 +100,7 @@ class Buffer:
         self, batch_size, model, device, n_batches_for_norm_estimate: int = 100
     ):
         # stolen from SAELens https://github.com/jbloomAus/SAELens/blob/6d6eaef343fd72add6e26d4c13307643a62c41bf/sae_lens/training/activations_store.py#L370
+        assert n_batches_for_norm_estimate <= len(self.all_tokens) // batch_size
         norms_per_batch = []
         for i in tqdm.tqdm(
             range(n_batches_for_norm_estimate), desc="Estimating norm scaling factor"
@@ -109,8 +112,9 @@ class Buffer:
                 return_type=None,
             )
             acts = cache[self.cfg["hook_point"]]
+            norm = acts.norm(dim=-1).mean().item()
             # TODO: maybe drop BOS here
-            norms_per_batch.append(acts.norm(dim=-1).mean().item())
+            norms_per_batch.append(norm)
         mean_norm = np.mean(norms_per_batch)
         scaling_factor = np.sqrt(model.cfg.d_model) / mean_norm
 
@@ -119,16 +123,14 @@ class Buffer:
     def fill_buffer(self, buffer):
         """Fill the specified buffer with new activations"""
         fill_pointer = 0
-        with torch.autocast("cuda", torch.bfloat16):
-            for _ in tqdm.trange(0, self.buffer_batches, self.cfg["model_batch_size"]):
-                if not self.running:
-                    return
+        with torch.autocast("cuda", DTYPES[self.cfg["dtype"]]):
+            remaining_batches = self.buffer_batches
+
+            while remaining_batches > 0 and self.running:
+                current_batch_size = min(self.cfg["model_batch_size"], remaining_batches)
 
                 tokens = self.all_tokens[
-                    self.token_pointer : min(
-                        self.token_pointer + self.cfg["model_batch_size"],
-                        self.buffer_batches,
-                    )
+                    self.token_pointer : self.token_pointer + current_batch_size
                 ]
 
                 with torch.cuda.stream(self.stream_A):
@@ -159,10 +161,17 @@ class Buffer:
                     "n_layers batch seq_len d_model -> (batch seq_len) n_layers d_model",
                 )
 
-                end_idx = fill_pointer + acts.shape[0]
+                # Ensure we don't exceed buffer size
+                acts_size = acts.shape[0]
+                if fill_pointer + acts_size > buffer.shape[0]:
+                    acts_size = buffer.shape[0] - fill_pointer
+                    acts = acts[:acts_size]
+
+                end_idx = fill_pointer + acts_size
                 buffer[fill_pointer:end_idx] = acts
                 fill_pointer = end_idx
-                self.token_pointer += self.cfg["model_batch_size"]
+                self.token_pointer += current_batch_size
+                remaining_batches -= current_batch_size
 
         # Shuffle the filled buffer
         idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
