@@ -143,8 +143,10 @@ class Buffer:
             with torch.cuda.stream(self.stream_A):
                 for i in range(0, total_tokens, self.cfg["model_batch_size"]):
                     batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
+                    batch = all_tokens[i:batch_end].to(self.cfg["device_A"])
+                    print(f"{batch.shape=}")
                     _, cache_A = self.model_A.run_with_cache(
-                        all_tokens[i:batch_end].to(self.cfg["device_A"]),
+                        batch,
                         names_filter=self.cfg["hook_point"],
                     )
                     acts = cache_A[self.cfg["hook_point"]][:, 1:, :].to(
@@ -156,8 +158,9 @@ class Buffer:
             with torch.cuda.stream(self.stream_B):
                 for i in range(0, total_tokens, self.cfg["model_batch_size"]):
                     batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
+                    batch = all_tokens[i:batch_end].to(self.cfg["device_B"])
                     _, cache_B = self.model_B.run_with_cache(
-                        all_tokens[i:batch_end].to(self.cfg["device_B"]),
+                        batch,
                         names_filter=self.cfg["hook_point"],
                     )
                     acts = cache_B[self.cfg["hook_point"]][:, 1:, :].to(
