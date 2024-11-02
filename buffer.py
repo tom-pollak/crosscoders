@@ -132,12 +132,14 @@ class Buffer:
     def fill_buffer(self, buffer):
         """Fill the specified buffer with new activations"""
         with torch.autocast("cuda", DTYPES[self.cfg["dtype"]]):
-            # Pre-fetch all tokens needed for this buffer
             total_tokens = self.buffer_batches * self.cfg["model_batch_size"]
-            all_tokens_A = self.all_tokens[
+            all_tokens = self.all_tokens[
                 self.token_pointer : self.token_pointer + total_tokens
-            ].to(self.cfg["device_A"])
-            all_tokens_B = all_tokens_A.to(self.cfg["device_B"])
+            ]
+            # all_tokens_A = self.all_tokens[
+            #     self.token_pointer : self.token_pointer + total_tokens
+            # ].to(self.cfg["device_A"])
+            # all_tokens_B = all_tokens_A.to(self.cfg["device_B"])
 
             acts_A = []
             acts_B = []
@@ -147,34 +149,34 @@ class Buffer:
                 for i in range(0, total_tokens, self.cfg["model_batch_size"]):
                     batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
                     _, cache_A = self.model_A.run_with_cache(
-                        all_tokens_A[i:batch_end],
+                        all_tokens[i:batch_end].to(self.cfg["device_A"]),
                         names_filter=self.cfg["hook_point"],
                     )
                     acts_A.append(
                         cache_A[self.cfg["hook_point"]][:, 1:, :].to(
                             self.cfg["device_sae"]
                         )
-                    )  # Drop BOS
+                    )
                     del cache_A
 
             with torch.cuda.stream(self.stream_B):
                 for i in range(0, total_tokens, self.cfg["model_batch_size"]):
                     batch_end = min(i + self.cfg["model_batch_size"], total_tokens)
                     _, cache_B = self.model_B.run_with_cache(
-                        all_tokens_B[i:batch_end],
+                        all_tokens[i:batch_end].to(self.cfg["device_B"]),
                         names_filter=self.cfg["hook_point"],
                     )
                     acts_B.append(
                         cache_B[self.cfg["hook_point"]][:, 1:, :].to(
                             self.cfg["device_sae"]
                         )
-                    )  # Drop BOS
+                    )
                     del cache_B
 
-            # Synchronize both streams before combining results
+            # Single synchronization point after all computations
             torch.cuda.synchronize()
 
-            # Combine all activations
+            # Combine all activations (already on device_sae)
             acts = torch.stack(
                 [
                     torch.cat(acts_A, dim=0),
