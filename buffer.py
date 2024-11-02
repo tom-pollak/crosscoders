@@ -189,7 +189,8 @@ class Buffer:
 
             thread_A.join()
             thread_B.join()
-            torch.cuda.synchronize()
+            torch.cuda.synchronize(self.cfg["device_A"])
+            torch.cuda.synchronize(self.cfg["device_B"])
 
             self.token_pointer += total_tokens
             idx = torch.randperm(buffer.shape[0], device=self.cfg["device_sae"])
@@ -215,8 +216,6 @@ class Buffer:
                 self.buffer_A_ready.set()
             else:
                 self.buffer_B_ready.set()
-
-            time.sleep(0.1)  # Short sleep to prevent CPU hogging
 
     @torch.no_grad()
     def next(self):
