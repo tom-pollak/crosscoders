@@ -89,6 +89,21 @@ default_cfg = {
 }
 cfg = arg_parse_update_cfg(default_cfg)
 
+def find_model_batch_size(model: HookedTransformer, batch_size: int, device, hook_point: str):
+    tokens = torch.randint(0, model.cfg.d_vocab, (batch_size, cfg["seq_len"]))
+    model.run_with_cache(
+        tokens.to(device),
+        names_filter=hook_point,
+        return_type=None,
+    )
+    return batch_size
+
+largest_model_batch_size = find_executable_batch_size(find_model_batch_size, 64)(base_model, all_tokens, device_A, cfg["hook_point"])
+print(f"Largest model batch size: {largest_model_batch_size}")
+cfg["model_batch_size"] = largest_model_batch_size
+
+# %%
+
 trainer = Trainer(cfg, base_model, lora_model, all_tokens)
 trainer.train()
 # %%

@@ -100,14 +100,14 @@ class Buffer:
                 self.token_pointer += self.cfg["model_batch_size"]
 
         self.pointer = 0
-        self.buffer = self.buffer[torch.randperm(self.buffer.shape[0]).to("cpu")]
+        self.buffer = self.buffer[torch.randperm(self.buffer.shape[0], device="cpu")]
 
     @torch.no_grad()
     def next(self):
         out = self.buffer[self.pointer : self.pointer + self.cfg["batch_size"]].float()
         # out: [batch_size, n_layers, d_model]
         self.pointer += self.cfg["batch_size"]
-        if self.pointer > self.buffer.shape[0] // 2 - self.cfg["batch_size"]:
+        if self.pointer > (self.buffer.shape[0] // 2 - self.cfg["batch_size"]):
             self.refresh()
         out = out.to(self.cfg["device"])
         if self.normalize:
