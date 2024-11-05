@@ -1,3 +1,7 @@
+> Fork of https://github.com/ckkissane/crosscoder-model-diff-replication
+
+Able to fill activation buffer in parallel with the SAE training, with each model on a different gpu
+
 # TLDR
 
 Open source replication of [Anthropic's Crosscoders for Model Diffing](https://transformer-circuits.pub/2024/crosscoders/index.html#model-diffing). 
